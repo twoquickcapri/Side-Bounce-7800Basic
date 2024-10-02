@@ -1,12 +1,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;SideBounce Version .15
+;SideBounce Version .16
 ;sideBounce.78b
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Completed List:
 ; Background
 ; Players
 ; Ball
-; Hit detection S
+; Hit detection 
 ; Score 
 ; Title Screen 
 ; Sound FX 
@@ -15,6 +15,8 @@
 ; paddle only 
 ; debounce 
 ; CPU Player
+; Reset Button
+; Attract Mode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;By Aaron Sigl aka Twoquickcapri @ AtariAge
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -35,7 +37,7 @@
     set plotvalueonscreen on
     set paddlepair on ; use both paddles
     set paddlerange 152
-    set paddlescalex2 off 
+    set paddlescalex2 off
 
     dim playerXPos = var0.var1
     dim playerYPos = var2.var3
@@ -72,6 +74,11 @@
     dim sound2DelayCount = var52
     dim sound3Delay = var53
     dim sound3DelayCount = var55
+    dim computer2Count = var56
+    dim timer = var57
+    dim timerCount = var58
+    dim timerCount2 = var59
+    dim computer1YPos = var60.var61
 
     playerXPos = 4.0
     playerYPos = 81.0
@@ -93,18 +100,22 @@
     score1 = 00000 ; Add 10,000 for 1 point
     scoreGoalPlayer = 251
     scoreGoalPlayer2 = 158
-    gameLogic{0} = 0 ; O = One Player | 1 = Two Player
+    gameLogic{0} = 0 ; O = Two Player | 1 = One Player
     gameLogic{1} = 0 ; 1 = Paused | 0 = !Paused
     gameLogic{2} = 1 ; 1 = Delay | 0 = !Delay
     gameLogic{3} = 0 ; 1 = Game Over | O = !Game Over
-    gameLogic{4} = 1 ; 1 = Computer Count On | 0 = Computer Count off
+    gameLogic{4} = 1 ; 1 = Player 2 Computer Count On | 0 = Computer Count off
+    gameLogic{5} = 1 ; 1 = Player 1 Computer Count On | 0 = Computer Count off
+    gameLogic{6} = 0 ; 1 = Attract Mode On | 0 = Attract Mode  off
     delayCount = 0
     delay = 30
     score2 = 100000
     paddlePos = 0
     paddle1Pos = 0
     computerYPos = player2YPos
+    computer1YPos = playerYPos
     computerCount = 0
+    computer2Count = 0
     pabbleAngle = 128
     pabble2Angle = 128
     gameOverDelay = 100
@@ -118,6 +129,9 @@
     sound2DelayCount = 0
     sound3Delay = 6
     sound3DelayCount = 0
+    timer = 5
+    timerCount = 0
+    timerCount2 = 0
 
     incgraphic font/fontAll.png 160a 0 3 1 2 0 0 0 0 0 0 0 0 0 0 0 0 ; Font  0123456789abcdefghijklmnopqrstuvwxyz - Background tileset bottom|right|top|left
     incgraphic font/fontNumber8x16.png 160a 0 1 3 2 0 0 0 0 0 0 0 0 0 0 0 0 ; Font [0123456789]
@@ -155,10 +169,10 @@ _titleLoop
     clearscreen  
     ;Paddle Left for One Player Mode
     ;if joy0up  then P2C3 = $0E : P3C3 = $05 : gameLogic{0} = 0
-    if paddleposition0 >= 75  then P2C3 = $0E : P3C3 = $05 : gameLogic{0} = 0
+    if paddleposition0 <= 75  then P2C3 = $0E : P3C3 = $05 : gameLogic{0} = 0
     ;Paddle Right for Two Player Mode
     ;if joy0down  then P3C3 = $0E : P2C3 = $05 : gameLogic{0} = 1
-    if paddleposition0 < 75 then P3C3 = $0E : P2C3 = $05 : gameLogic{0} = 1
+    if paddleposition0 > 75 then P3C3 = $0E : P2C3 = $05 : gameLogic{0} = 1
  
     ;Debounce button to stop Title Screen skip   
     if delay >= delayCount then _skipButton
@@ -173,6 +187,11 @@ _skipButton
     plotchars 'two player' 3 40 9
     
     plotsprite program 0 41 175
+
+    ;Timer for Attract Mode around 20 sec.
+    if timerCount2 = timer then gameLogic{6} = 1 : gameLogic{0} = 0 : timerCount = 0 : timerCount2 = 0  : goto _titleEnd
+    timerCount = timerCount + 1
+    if timerCount = 255 then timerCount2 = timerCount2 + 1
 
     ;Update Screen
     drawscreen
@@ -247,10 +266,16 @@ _gameOver
     if gameLogic{3} && joy0fire then reboot
     if gameLogic{3} && joy1fire then reboot
 _skipReboot
+
     ;Start Game over Delay Count when GameOver set On
     if gameLogic{3} then gameOverDelayCount = gameOverDelayCount + 1
     if gameOverDelayCount > 101 then gameOverDelayCount = 101 
     if !gameLogic{3} then gameOverDelayCount = 0
+
+    ;Timer for Rest around 20 sec.
+    if timerCount2 = timer then reboot
+    if gameLogic{3} then timerCount = timerCount + 1
+    if timerCount = 255 then timerCount2 = timerCount2 + 1
 
     goto _returnGameOver
     ;End of GameOver
@@ -266,6 +291,7 @@ _drawBackground
 _playerMovement
     ;Check for Paused Game
     if gameLogic{1} then goto _playerPaused
+    if gameLogic{6} then goto _attractMode
 
     ;Move Player right until it hits it's limit
     ;if joy0right && playerYPos <= 154 then playerYPos = playerYPos + playerMovementSpeed 
@@ -285,7 +311,9 @@ _playerMovement
     playerYPos = paddlePos 
     if gameLogic{0} then player2YPos = paddle1Pos 
 
+_attractMode
     if !gameLogic{0} then goto _computerPlayer
+    
 _computerPlayerReturn
 
 _playerPaused
@@ -293,6 +321,11 @@ _playerPaused
     plotsprite player 0 playerXPos playerYPos
     plotsprite player_2 0 player2XPos player2YPos
 
+    ;Display Message in Attract Mode
+    if gameLogic{6} then plotchars 'press fire' 1 40 8 : plotchars 'to start' 1 48 9
+    ;Press fire button to go back to main menu
+    if gameLogic{6} && joy0fire then reboot
+    if gameLogic{6} && joy1fire then reboot
 
     goto _playerMovementReturn
     ; End of Player Movement
@@ -415,16 +448,17 @@ _skipBallFlag
 
 _computerPlayer
     ;Randomly Change place on the Paddle the Computer tries to hit with
+    if gameLogic{4} then computerCount = rand &5
     if computerCount = 0 then computerYPos = player2YPos + 0.0
     if computerCount = 1 then computerYPos = player2YPos + 3.0
     if computerCount = 2 then computerYPos = player2YPos + 9.0 
     if computerCount = 3 then computerYPos = player2YPos + 15.0
     if computerCount = 4 then computerYPos = player2YPos + 21.0
     if computerCount = 5 then computerYPos = player2YPos + 23.0
-    if gameLogic{4} then computerCount = rand &5
 
-    ;Skip moving Computer Player when is is on Player's side 
-    if ballX < 94 then goto _skipComputerPlayer
+
+    ;Skip moving Computer Player when ball is on Player's side 
+    if ballX < 94 then goto _skipComputerPlayer2
     gameLogic{4} = 0
 
     ;Move Computer Paddle with offset and stop after ball hit. Slow down when ball is near the same Y axis
@@ -438,7 +472,38 @@ _computerPlayer
     if player2YPos > 156 then player2YPos = 156
     if ballFlag{0} then gameLogic{4} = 1
 
+_skipComputerPlayer2
+
+    ;Player Attract Mode 
+    if !gameLogic{6} then goto _skipAttractMode
+    ;Randomly Change place on the Paddle the Computer tries to hit with
+    if gameLogic{5} then computer2Count = rand &5
+    if computer2Count = 0 then computer1YPos = playerYPos + 0.0
+    if computer2Count = 1 then computer1YPos = playerYPos + 3.0
+    if computer2Count = 2 then computer1YPos = playerYPos + 9.0 
+    if computer2Count = 3 then computer1YPos = playerYPos + 15.0
+    if computer2Count = 4 then computer1YPos = playerYPos + 21.0
+    if computer2Count = 5 then computer1YPos = playerYPos + 23.0
+
+    ;Skip moving Computer Player when ball is on Player 2's side 
+    if ballX > 65 then goto _skipComputerPlayer
+    gameLogic{5} = 0
+
+    ;Move Computer Paddle with offset and stop after ball hit. Slow down when ball is near the same Y axis
+    if (ballY + 4) > computer1YPos && ballFlag{0} then playerYPos = playerYPos + 2.4
+    if (ballY - 4) < computer1YPos && ballFlag{0} then playerYPos = playerYPos - 2.4
+    if ballY > computer1YPos && ballFlag{0} then playerYPos = playerYPos + 1.1
+    if ballY < computer1YPos && ballFlag{0} then playerYPos = playerYPos - 1.1
+    if ballY = computer1YPos && ballFlag{0} then playerYPos = playerYPos
+    ; Keep Computer Paddle from going off screen
+    if playerYPos < 6 then playerYPos = 6
+    if playerYPos > 156 then playerYPos = 156
+    if !ballFlag{0} then gameLogic{5} = 1
+
 _skipComputerPlayer
+
+_skipAttractMode
+
 
     goto _computerPlayerReturn
     ;End of Computer Player
@@ -446,16 +511,17 @@ _skipComputerPlayer
 _playSound
     ;Prevent same fx from overlaping themselves by addig cooldown to each SoundFX
     ;After sound fx call turn on Sound Delay by stting sound delay count to 0
+    ;Mute sound for Attrach Mode
     if sound1Delay > sound1DelayCount then soundLogic{0} = 0 : goto _skipSoundFX  
-    if soundLogic{0} then playsfx sfx_bounce 12 : sound1DelayCount = 0
+    if soundLogic{0} && !gameLogic{6} then playsfx sfx_bounce 12 : sound1DelayCount = 0
 _skipSoundFX
     
     if sound2Delay > sound2DelayCount then soundLogic{1} = 0 : goto _skipSoundFX2 
-    if soundLogic{1} then playsfx sfx_player 12 : sound2DelayCount = 0
+    if soundLogic{1} && !gameLogic{6} then playsfx sfx_player 12 : sound2DelayCount = 0
 _skipSoundFX2
 
     if sound3Delay > sound3DelayCount then soundLogic{2} = 0  : goto _skipSoundFX3 
-    if soundLogic{2} then playsfx sfx_score 12 : sound3DelayCount = 0
+    if soundLogic{2} && !gameLogic{6} then playsfx sfx_score 12 : sound3DelayCount = 0
 _skipSoundFX3
     ;Sound delay counter for each Sound FX
     if sound1Delay > sound1DelayCount then sound1DelayCount = sound1DelayCount + 1 
