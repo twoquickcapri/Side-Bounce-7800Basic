@@ -1,6 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;SideBounce Version .16
+;SideBounce Version 1.0
 ;sideBounce.78b
+; Updated: 06/29/2025
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Completed List:
 ; Background
@@ -17,16 +18,14 @@
 ; CPU Player
 ; Reset Button
 ; Attract Mode
+; Option Menu
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;By Aaron Sigl aka Twoquickcapri @ AtariAge
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TO DO list:
-; Music - Being Match - Game Over
-; Try different Ball And Paddle sizes
-; Paddle and Joystick Controller support detection? Mouse?
-; gameplay balance
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+    ; Assign Sets   
     set romsize 16k
     set doublewide on
     set tv ntsc
@@ -39,6 +38,7 @@
     set paddlerange 152
     set paddlescalex2 off
 
+    ; Assign Memory to Varables
     dim playerXPos = var0.var1
     dim playerYPos = var2.var3
     dim player2XPos = var4.var5
@@ -79,27 +79,22 @@
     dim timerCount = var58
     dim timerCount2 = var59
     dim computer1YPos = var60.var61
+    dim controllerDebounce = var62
+    dim menuCount = var63
+    dim subMenuCount = var64
+    dim gameMenuLogic = var65
+    dim gameScoreMenu = var66
+    dim computerMovementSpeed = var67
+    dim computerMovementSpeed2 = var68
 
-    playerXPos = 4.0
-    playerYPos = 81.0
-    player2XPos = 152.0
-    player2YPos = 81.0
+    ; Varables
     playerMovementSpeed = 2.0
-    ballX = 76.0
-    ballY = 92.0
     ballMovementSpeedX = 1.2
     ballMovementSpeedY = 2.2
-    ballFlag{0} = 1 ; 1 ball left in X - 0 Ball right in X
-    ballFlag{1} = 1 ; 1 ball up in Y - 0 ball down in Y
-    ballFlag{2} = 1 ; 1 ball up in Y last round - 0 ball down in Y last round
-    ballFrame = 0
-    frameCount = 0
     playerYPosMiddle = 0
     player2YPosMiddle = 0
-    score0 = 00000 ; Add 10,000 for 1 point
-    score1 = 00000 ; Add 10,000 for 1 point
-    scoreGoalPlayer = 251
-    scoreGoalPlayer2 = 158
+    scoreGoalPlayer = 2
+    scoreGoalPlayer2 = 150
     gameLogic{0} = 0 ; O = Two Player | 1 = One Player
     gameLogic{1} = 0 ; 1 = Paused | 0 = !Paused
     gameLogic{2} = 1 ; 1 = Delay | 0 = !Delay
@@ -107,32 +102,26 @@
     gameLogic{4} = 1 ; 1 = Player 2 Computer Count On | 0 = Computer Count off
     gameLogic{5} = 1 ; 1 = Player 1 Computer Count On | 0 = Computer Count off
     gameLogic{6} = 0 ; 1 = Attract Mode On | 0 = Attract Mode  off
-    delayCount = 0
-    delay = 30
+    gameLogic{7} = 0 ; 1 = Option Srceen | 0 = Not Option
     score2 = 100000
     paddlePos = 0
     paddle1Pos = 0
     computerYPos = player2YPos
     computer1YPos = playerYPos
-    computerCount = 0
-    computer2Count = 0
-    pabbleAngle = 128
-    pabble2Angle = 128
-    gameOverDelay = 100
-    gameOverDelayCount = 0
-    soundLogic{0} = 0 ; 1 = Play sfx_bounce | 0 = off
-    soundLogic{1} = 0 ; 1 = Play sfx_player | 0 = off
-    soundLogic{2} = 0 ; 1 = Play sfx_score | 0 = off
+    controllerDebounce{1} = 0
+    menuCount = 0
+    subMenuCount = 0
+    gameMenuLogic{0} = 1 ; 1 = Main Menu | 0 = Sub Menu 
+    gameMenuLogic{1} = 0 ; 1 = Hard | 0 = Easy
+    gameMenuLogic{2} = 0 ; 1 = Fast | 0 = Slow
+    gameScoreMenu = 1
+    computerMovementSpeed = 99
+    computerMovementSpeed2 = 60
     sound1Delay = 6
-    sound1DelayCount = 0
     sound2Delay = 6
-    sound2DelayCount = 0
     sound3Delay = 6
-    sound3DelayCount = 0
-    timer = 5
-    timerCount = 0
-    timerCount2 = 0
 
+    ; Import Grafx
     incgraphic font/fontAll.png 160a 0 3 1 2 0 0 0 0 0 0 0 0 0 0 0 0 ; Font  0123456789abcdefghijklmnopqrstuvwxyz - Background tileset bottom|right|top|left
     incgraphic font/fontNumber8x16.png 160a 0 1 3 2 0 0 0 0 0 0 0 0 0 0 0 0 ; Font [0123456789]
     incgraphic player/player.png 160A 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 ;Player sprite
@@ -144,6 +133,7 @@
     incgraphic ball/ball4.png 160A 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 ;Ball sprite
     incgraphic ball/ball5.png 160A 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 ;Ball sprite
     incgraphic background/program.png 160A 2 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 ;credit
+    incgraphic background/year.png 160A 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 ;year
 
     incbanner background/titleSideBounceBig.png 160a 3 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0; Logo
 
@@ -154,7 +144,10 @@
     P2C1=$05 : P2C2=$32 : P2C3=$0E ;Grey - Red - White Player Menu
     P3C1=$0E : P3C2=$32 : P3C3=$05 ;White - Red - Grey Player 2 Menu
     P4C1=$FE : P4C2=$2A : P4C3=$34 ;Yellow - Orange - Red Title Screen
-    
+    P5C1=$0E : P5C2=$32 : P5C3=$05 ;White - Red - Grey Options Menu
+    P6C1=$0E : P6C2=$32 : P6C3=$05 ;White - Red - Grey Options Menu
+    P7C1=$0E : P7C2=$32 : P7C3=$05 ;White - Red - Grey Options Menu
+
     ;Black Background Color
     BACKGRND=$00
 
@@ -165,28 +158,68 @@
     ;Set up Paddle controls
     changecontrol 0 paddle
 
+_titleLoopRest
+    ; Set Varables for next Game Loop
+    playerXPos = 4.0
+    playerYPos = 81.0
+    player2XPos = 152.0
+    player2YPos = 81.0
+    ballX = 76.0
+    ballY = 92.0
+    delayCount = 0
+    delay = 30
+    timer = 5
+    timerCount = 0
+    timerCount2 = 0
+    score0 = 00000 ; Add 10,000 for 1 point
+    score1 = 00000 ; Add 10,000 for 1 point
+    gameOverDelay = 100
+    gameOverDelayCount = 0
+    computerCount = 0
+    computer2Count = 0
+    frameCount = 0
+    ballFrame = 0
+    pabbleAngle = 128
+    pabble2Angle = 128
+    ballFlag{0} = 1 ; 1 ball left in X - 0 Ball right in X
+    ballFlag{1} = 1 ; 1 ball up in Y - 0 ball down in Y
+    ballFlag{2} = 1 ; 1 ball up in Y last round - 0 ball down in Y last round
+    soundLogic{0} = 0 ; 1 = Play sfx_bounce | 0 = off
+    soundLogic{1} = 0 ; 1 = Play sfx_player | 0 = off
+    soundLogic{2} = 0 ; 1 = Play sfx_score | 0 = off
+    sound1DelayCount = 0
+    sound2DelayCount = 0
+    sound3DelayCount = 0
+
 _titleLoop
     clearscreen  
     ;Paddle Left for One Player Mode
-    ;if joy0up  then P2C3 = $0E : P3C3 = $05 : gameLogic{0} = 0
-    if paddleposition0 <= 75  then P2C3 = $0E : P3C3 = $05 : gameLogic{0} = 0
+    if paddleposition0 <= 50  then P2C3 = $0E : P3C3 = $05 : P5C3 = $05 : gameLogic{0} = 0 : gameLogic{7} = 0 
+    ;Paddle Middle for Two Player Mode
+    if paddleposition0 > 50 && paddleposition0 <= 100 then P3C3 = $0E : P2C3 = $05 : P5C3 = $05 : gameLogic{0} = 1 : gameLogic{7} = 0 
     ;Paddle Right for Two Player Mode
-    ;if joy0down  then P3C3 = $0E : P2C3 = $05 : gameLogic{0} = 1
-    if paddleposition0 > 75 then P3C3 = $0E : P2C3 = $05 : gameLogic{0} = 1
+    if paddleposition0 > 100 then P5C3 = $0E : P2C3 = $05 : P3C3 = $05 : gameLogic{7} = 1 
  
     ;Debounce button to stop Title Screen skip   
     if delay >= delayCount then _skipButton
-    if joy0fire then goto _titleEnd
+
+    ;if joy0fire then goto _titleEnd
+    if joy0fire then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && !gameLogic{7} then controllerDebounce{1} = 0 :  mutesfx tia : goto _titleEnd
+    if !joy0fire && controllerDebounce{1} && gameLogic{7} then controllerDebounce{1} = 0 : goto _menuLoop
+
 _skipButton
-    if delayCount < 31 then delayCount = delayCount + 1
+    if delayCount <= delay then delayCount = delayCount + 1
 
     ;Display Title Screen
-    plotbanner titleSideBounceBig 4 30 36
+    plotbanner titleSideBounceBig 4 30 22
 
-    plotchars 'one player' 2 40 8
-    plotchars 'two player' 3 40 9
+    plotchars 'one player' 2 36 7
+    plotchars 'two players' 3 36 8
+    plotchars 'options' 5 36 9
     
-    plotsprite program 0 41 175
+    plotsprite program 0 31 182
+    plotsprite year 0 109 182
 
     ;Timer for Attract Mode around 20 sec.
     if timerCount2 = timer then gameLogic{6} = 1 : gameLogic{0} = 0 : timerCount = 0 : timerCount2 = 0  : goto _titleEnd
@@ -198,7 +231,93 @@ _skipButton
     goto _titleLoop
     ;End of Title Loop
 
+_menuLoop
+    clearscreen
+    
+    ;Main Menu Panel Position
+    if !gameMenuLogic{0} then _skipMainMenu
+    if paddleposition0 <= 30 then P2C3 = $0E : P3C3 = $05 : P5C3 = $05 : P6C3 = $05 : P7C3 = $05 : menuCount = 0
+    if paddleposition0 > 30 && paddleposition0 <= 60 then P3C3 = $0E : P2C3 = $05 : P5C3 = $05 : P6C3 = $05 : P7C3 = $05  : menuCount = 1
+    if paddleposition0 > 60 && paddleposition0 <= 90  then P5C3 = $0E : P2C3 = $05 : P3C3 = $05 : P6C3 = $05 : P7C3 = $05  : menuCount = 2
+    if paddleposition0 > 90 && paddleposition0 <= 120  then P6C3 = $0E : P2C3 = $05 : P3C3 = $05 : P5C3 = $05 : P7C3 = $05 : menuCount = 3
+    if paddleposition0 > 120 then P7C3 = $0E : P2C3 = $05 : P3C3 = $05 : P5C3 = $05 : P6C3 = $05  : menuCount = 4
+_skipMainMenu
+
+    ; Sub Menu Score
+    if gameMenuLogic{0} then _skipSubMainMenu
+    if subMenuCount = 0 && paddleposition0 <= 30 then gameScoreMenu = 0 : score2 = 50000
+    if subMenuCount = 0 && paddleposition0 > 30 && paddleposition0 <= 60 then gameScoreMenu = 1 : score2 = 100000
+    if subMenuCount = 0 && paddleposition0 > 60 && paddleposition0 <= 90  then gameScoreMenu =2 : score2 = 150000
+    if subMenuCount = 0 && paddleposition0 > 90 && paddleposition0 <= 120  then gameScoreMenu =3 : score2 = 200000
+    if subMenuCount = 0 && paddleposition0 > 120 then gameScoreMenu = 4 : score2 = 250000
+    ; Sub Menu Difficult
+    if subMenuCount = 1 && paddleposition0 <= 75 then gameMenuLogic{1} = 0 : computerMovementSpeed = 99 : computerMovementSpeed2 = 60
+    if subMenuCount = 1 && paddleposition0 > 75 then gameMenuLogic{1} = 1 : computerMovementSpeed = 72 : computerMovementSpeed2 = 108
+    ; Sub Menu Ball Speed
+    if subMenuCount = 2 && paddleposition0 <= 75 then gameMenuLogic{2} = 0 : ballMovementSpeedX = 1.2
+    if subMenuCount = 2 && paddleposition0 > 75 then gameMenuLogic{2} = 1 : ballMovementSpeedX = 2.4 
+    ; Sub Menu Field Color
+    if subMenuCount = 3 && paddleposition0 <= 25 then P0C3=$0E ; White
+    if subMenuCount = 3 && paddleposition0 > 25 && paddleposition0 <= 50 then P0C3=$32 ; Red
+    if subMenuCount = 3 && paddleposition0 > 50 && paddleposition0 <= 75  then P0C3=$63 ; Purple
+    if subMenuCount = 3 && paddleposition0 > 75 && paddleposition0 <= 100  then P0C3=$83 ; Blue
+    if subMenuCount = 3 && paddleposition0 > 100 && paddleposition0 <= 125  then P0C3=$C3 ; Green
+    if subMenuCount = 3 && paddleposition0 > 125 then P0C3=$FE ; Yellow
+_skipSubMainMenu
+    ; Display Menu Screen
+    plotchars 'options' 1 50 1
+    plotchars 'win scores' 2 10 3
+    ; Options for Winning Score
+    if gameScoreMenu = 0 then plotchars '5' 2 120 3
+    if gameScoreMenu = 1 then plotchars '10' 2 120 3
+    if gameScoreMenu = 2 then plotchars '15' 2 120 3
+    if gameScoreMenu = 3 then plotchars '20' 2 120 3
+    if gameScoreMenu = 4 then plotchars '25' 2 120 3
+
+    plotchars 'ai difficult' 3 10 4
+    ; Options for Difficult
+    if !gameMenuLogic{1} then plotchars 'easy' 3 120 4
+    if gameMenuLogic{1} then plotchars 'hard' 3 120 4
+
+    plotchars 'ball speed' 5 10 5
+    ; Options for Ball Speed
+    if !gameMenuLogic{2} then plotchars 'slow' 5 120 5
+    if gameMenuLogic{2} then plotchars 'fast' 5 120 5
+
+    plotchars 'field color' 6 10 6
+    plotchars 'CB' 0 114 6
+    plotchars 'exit' 7 10 7
+
+    ; Select Menu Option Based on Paddle POS and Button Click
+    ; Select Score for Win
+    if joy0fire && menuCount = 0 && gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && menuCount = 0 && gameMenuLogic{0} then controllerDebounce{1} = 0 : subMenuCount = 0 : gameMenuLogic{0} = 0
+    ; Select Computer Difficult
+    if joy0fire && menuCount = 1 && gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && menuCount = 1 && gameMenuLogic{0} then controllerDebounce{1} = 0 : subMenuCount = 1 : gameMenuLogic{0} = 0
+    ; Select Ball Speed
+    if joy0fire && menuCount = 2 && gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && menuCount = 2 && gameMenuLogic{0} then controllerDebounce{1} = 0 : subMenuCount = 2 : gameMenuLogic{0} = 0
+    ; Select Color of BackGround
+    if joy0fire && menuCount = 3 && gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && menuCount = 3 && gameMenuLogic{0} then controllerDebounce{1} = 0 : subMenuCount = 3 : gameMenuLogic{0} = 0
+    ; Exit back to Title Screen
+    if joy0fire && menuCount = 4 && gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && menuCount = 4 && gameMenuLogic{0} then controllerDebounce{1} = 0 : goto _titleLoop
+
+    ; Sub Menu Cancel
+    if joy0fire && !gameMenuLogic{0} then controllerDebounce{1} = 1
+    if !joy0fire && controllerDebounce{1} && !gameMenuLogic{0} then controllerDebounce{1} = 0 : gameMenuLogic{0} = 1
+
+    ;Update Screen
+    drawscreen
+
+    goto _menuLoop
+    ;End Of menuLoop
+
+    ; End of Title and Start of Main Loop
 _titleEnd
+
     ;Clear the screen
     clearscreen
     
@@ -210,7 +329,7 @@ _titleEnd
     goto _drawBackground
 _drawBackgroundReturn
 
-    ;Save Background
+    ;Save Background for Reuse
     savescreen
 
     ;Main Gameplay Loop
@@ -259,21 +378,23 @@ _skipDelay
 
 _gameOver
     ; Check Player/Player2 Score is = 100000 (10 Points) then pause and wait for reboot signal
-    if score0 = score2 || score1 = score2 then gameLogic{3} = 1 : gameLogic{1} = 1 : plotchars 'game over' 1 45 5  
+    if score0 = score2 || score1 = score2 then gameLogic{3} = 1 : gameLogic{1} = 1 : plotchars 'game over' 1 45 7 
 
     ;Delay button press to prevent sfx hanging and missing title screen
     if gameOverDelayCount < gameOverDelay then goto _skipReboot
-    if gameLogic{3} && joy0fire then reboot
-    if gameLogic{3} && joy1fire then reboot
-_skipReboot
 
+    ;if gameLogic{3} && joy0fire then mutesfx tia : reboot
+    if gameLogic{3} && joy0fire then controllerDebounce{1} = 1
+    if gameLogic{3} && !joy0fire && controllerDebounce{1} then controllerDebounce{1} = 0 : gameLogic{6} = 0 : gameLogic{3} = 0 : gameLogic{1} = 0 : gameLogic{2} = 1 : mutesfx tia : goto _titleLoopRest
+    if gameLogic{3} && gameLogic{6} then gameLogic{6} = 0 : gameLogic{3} = 0 : gameLogic{1} = 0 : gameLogic{2} = 1 : mutesfx tia : goto _titleLoopRest
+_skipReboot
     ;Start Game over Delay Count when GameOver set On
     if gameLogic{3} then gameOverDelayCount = gameOverDelayCount + 1
     if gameOverDelayCount > 101 then gameOverDelayCount = 101 
     if !gameLogic{3} then gameOverDelayCount = 0
 
     ;Timer for Rest around 20 sec.
-    if timerCount2 = timer then reboot
+    if timerCount2 = timer then gameLogic{6} = 0 : gameLogic{3} = 0 : gameLogic{1} = 0 : gameLogic{2} = 1 : mutesfx tia : goto _titleLoopRest
     if gameLogic{3} then timerCount = timerCount + 1
     if timerCount = 255 then timerCount2 = timerCount2 + 1
 
@@ -281,7 +402,6 @@ _skipReboot
     ;End of GameOver
 
 _drawBackground
-
     ;Draw Game Map
     plotmap screen_map 0 0 0 20 12
 
@@ -289,21 +409,8 @@ _drawBackground
     ; End of Draw Background
 
 _playerMovement
-    ;Check for Paused Game
-    if gameLogic{1} then goto _playerPaused
+    if gameLogic{3} then goto _skipPlayerMovement
     if gameLogic{6} then goto _attractMode
-
-    ;Move Player right until it hits it's limit
-    ;if joy0right && playerYPos <= 154 then playerYPos = playerYPos + playerMovementSpeed 
-    ;if playerYPos > 156 then playerYPos = 160
-    ;Move Player left until it hits it's limit
-    ;if joy0left && playerYPos >= 7 then playerYPos = playerYPos - playerMovementSpeed 
-
-    ;Move Player 2 right until it hits it's limit
-    ;if joy1right && player2YPos <= 154 then player2YPos = player2YPos + playerMovementSpeed 
-    ;if playerYPos2 > 156   then playerYPos2 = 160
-    ;Move Player 2 left until it hits it's limit
-    ;if joy1left && player2YPos >= 7  then player2YPos = player2YPos - playerMovementSpeed
 
     paddlePos = paddleposition0 + 4
     if gameLogic{0} then paddle1Pos = paddleposition1 + 4
@@ -316,7 +423,7 @@ _attractMode
     
 _computerPlayerReturn
 
-_playerPaused
+_skipPlayerMovement
     ;Draw Player in new position
     plotsprite player 0 playerXPos playerYPos
     plotsprite player_2 0 player2XPos player2YPos
@@ -335,8 +442,8 @@ _ballMovement
     if gameLogic{1} then goto _ballPaused
     
     ; Change Angle of ball base on were it hits the Paddle for Player
-    if boxcollision(ballX, ballY, 8, 8, playerXPos, playerYPos, 4, 26) then pabbleAngle =  ballY - playerYPos
-    if boxcollision(ballX, ballY, 8, 8, player2XPos, player2YPos, 4, 26) then pabble2Angle =  ballY - player2YPos
+    if boxcollision(ballX, ballY, 8, 8, playerXPos, playerYPos, 4, 32) then pabbleAngle =  ballY - playerYPos
+    if boxcollision(ballX, ballY, 8, 8, player2XPos, player2YPos, 4, 32) then pabble2Angle =  ballY - player2YPos
 
     if pabbleAngle >= 248 && pabbleAngle < 255 && !ballFlag{0} then ballMovementSpeedY = 4.5
     if pabbleAngle >= 0 && pabbleAngle < 4 && !ballFlag{0} then ballMovementSpeedY = 2.75
@@ -345,8 +452,8 @@ _ballMovement
     if pabbleAngle = 11 && !ballFlag{0} then ballMovementSpeedY = 0 
     if pabbleAngle >= 12 && pabbleAngle < 16 && !ballFlag{0} then ballMovementSpeedY = 0.5
     if pabbleAngle >= 16 && pabbleAngle < 20 && !ballFlag{0} then ballMovementSpeedY = 1.5 
-    if pabbleAngle >= 20 && pabbleAngle < 23 && !ballFlag{0} then ballMovementSpeedY = 2.75 
-    if pabbleAngle >= 23 && pabbleAngle < 32 && !ballFlag{0} then ballMovementSpeedY = 4.5 
+    if pabbleAngle >= 20 && pabbleAngle < 24 && !ballFlag{0} then ballMovementSpeedY = 2.75 
+    if pabbleAngle >= 24 && pabbleAngle < 33 && !ballFlag{0} then ballMovementSpeedY = 4.5 
     ; Change Angle of ball base on were it hits the Paddle for Player 2
     if pabble2Angle >= 248 && pabble2Angle < 255 && ballFlag{0} then ballMovementSpeedY = 4.5
     if pabble2Angle >= 0 && pabble2Angle < 4 && ballFlag{0} then ballMovementSpeedY = 2.75
@@ -355,9 +462,8 @@ _ballMovement
     if pabble2Angle = 11 && ballFlag{0} then ballMovementSpeedY = 0 
     if pabble2Angle >= 12 && pabble2Angle < 16 && ballFlag{0} then ballMovementSpeedY = 0.5 
     if pabble2Angle >= 16 && pabble2Angle < 20 && ballFlag{0} then ballMovementSpeedY = 1.5
-    if pabble2Angle >= 20 && pabble2Angle < 23 && ballFlag{0} then ballMovementSpeedY = 2.75
-    if pabble2Angle >= 23 && pabble2Angle < 32 && ballFlag{0} then ballMovementSpeedY = 4.5 
-
+    if pabble2Angle >= 20 && pabble2Angle < 24 && ballFlag{0} then ballMovementSpeedY = 2.75
+    if pabble2Angle >= 24 && pabble2Angle < 33 && ballFlag{0} then ballMovementSpeedY = 4.5 
 
     ;Dividng up Paddle into two sections
     playerYPosMiddle = playerYPos + 11
@@ -386,9 +492,6 @@ _skipBallBottom2
 
 _ballCollisionCheck2
     ;Reverse ball when hitting wall
-    ;behind goal
-    ;if ballX = 0 then ballFlag{0} = 0 : soundLogic{0} = 1;left 
-    ;if ballX >= 152 then ballFlag{0} = 1 : soundLogic{0} = 1;right 
  
     ;Top and bottom
     if ballY <= 5 then ballFlag{1} = 0 : soundLogic{0} = 1;top 
@@ -416,25 +519,20 @@ _ballPaused
 
 _displayScore
     ;Add 10,000 for 1 point
-    if ballX = scoreGoalPlayer && !gameLogic{1} then score1 = score1 + 10000 : soundLogic{2} = 1 : ballFlag{0} = 1 : goto _resetMatch ;check for pause
-    if ballX = scoreGoalPlayer2 && !gameLogic{1} then score0 = score0 + 10000 : soundLogic{2} = 1 : ballFlag{0} = 0 : goto _resetMatch ;check for pause
+    if ballX < scoreGoalPlayer && !gameLogic{1} then score1 = score1 + 10000 : soundLogic{2} = 1 : ballFlag{0} = 1 : goto _resetMatch ;check for pause
+    if ballX > scoreGoalPlayer2 && !gameLogic{1} then score0 = score0 + 10000 : soundLogic{2} = 1 : ballFlag{0} = 0 : goto _resetMatch ;check for pause
     
     ;display score
-    plotvalue fontNumber8x16 1 score0 2 55 1 
+    plotvalue fontNumber8x16 1 score0 2 56 1 
     plotvalue fontNumber8x16 1 score1 2 90 1 
 
     goto _returnDisplayScore
     ;End of DisplayScore
 
 _resetMatch
-    ;Reset Player/Player2/Ball POS - Set Delay - Reset Ball Frame and Direction
-    playerXPos = 4
-    playerYPos = 81
-    player2XPos = 152
-    player2YPos = 81
+    ;Reset Ball POS - Set Delay - Reset Ball Frame and Direction
     ballX = 77.0
     ballY = 93.0
-    ballMovementSpeedX = 1.2
     ballMovementSpeedY = 2.2
     ;Change direction of ball after a scored goal 
     if ballFlag{2} then  ballFlag{1} = 1 : ballFlag{2} = 0 : goto _skipBallFlag
@@ -456,9 +554,11 @@ _computerPlayer
     if computerCount = 4 then computerYPos = player2YPos + 21.0
     if computerCount = 5 then computerYPos = player2YPos + 23.0
 
-
     ;Skip moving Computer Player when ball is on Player's side 
-    if ballX < 94 then goto _skipComputerPlayer2
+    ;Move Computer Player to center of field on y axis when ball on other side of count
+    if ballX < computerMovementSpeed && player2YPos < 80 then player2YPos = player2YPos + 0.5 : goto _skipComputerPlayer2
+    if ballX < computerMovementSpeed && player2YPos > 80 then player2YPos = player2YPos - 0.5 : goto _skipComputerPlayer2
+    if ballX < computerMovementSpeed then goto _skipComputerPlayer2
     gameLogic{4} = 0
 
     ;Move Computer Paddle with offset and stop after ball hit. Slow down when ball is near the same Y axis
@@ -485,8 +585,11 @@ _skipComputerPlayer2
     if computer2Count = 4 then computer1YPos = playerYPos + 21.0
     if computer2Count = 5 then computer1YPos = playerYPos + 23.0
 
-    ;Skip moving Computer Player when ball is on Player 2's side 
-    if ballX > 65 then goto _skipComputerPlayer
+    ;Skip moving Computer Player2 when ball is on Player side 
+    ;Move Computer Player2 to center of field on y axis when ball on other side of count
+    if ballX > computerMovementSpeed2 && playerYPos < 80 then playerYPos = playerYPos + 0.5 : goto _skipComputerPlayer
+    if ballX > computerMovementSpeed2 && playerYPos > 80 then playerYPos = playerYPos - 0.5 : goto _skipComputerPlayer
+    if ballX > computerMovementSpeed2  then goto _skipComputerPlayer
     gameLogic{5} = 0
 
     ;Move Computer Paddle with offset and stop after ball hit. Slow down when ball is near the same Y axis
@@ -503,7 +606,6 @@ _skipComputerPlayer2
 _skipComputerPlayer
 
 _skipAttractMode
-
 
     goto _computerPlayerReturn
     ;End of Computer Player
@@ -588,7 +690,7 @@ end
     $00, $00, $00
 end
 
- data sfx_score
+    data sfx_score
     $10,$10,$00 ; version, priority, frames per chunk
     $07,$0c,$0f ; first chunk of freq,channel,volume
     $06,$0c,$04
